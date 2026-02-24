@@ -1,21 +1,55 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Scale } from "lucide-react";
+import { Scale, Loader2 } from "lucide-react";
+import { supabase } from "@/services/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const passwordsMatch = confirmPassword === "" || password === confirmPassword;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: integrate with auth
+
+    if (password !== confirmPassword) return;
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Registration failed",
+        description: error.message,
+      });
+      setLoading(false);
+      return;
+    }
+
+    toast({
+      title: "Account created",
+      description: "Please check your email to confirm your account, then sign in.",
+    });
+
+    navigate("/login");
   };
 
   return (
@@ -38,7 +72,7 @@ const Register = () => {
       {/* Right panel */}
       <div className="flex w-full items-center justify-center px-6 lg:w-1/2">
         <div className="w-full max-w-sm">
-        <Link to="/" className="mb-8 lg:hidden flex items-center gap-2">
+          <Link to="/" className="mb-8 lg:hidden flex items-center gap-2">
             <Scale className="h-5 w-5 text-foreground" />
             <span className="font-serif text-xl font-semibold text-foreground">AymerAI</span>
           </Link>
@@ -54,6 +88,7 @@ const Register = () => {
                 placeholder="Jane Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={loading}
                 required
               />
             </div>
@@ -65,6 +100,7 @@ const Register = () => {
                 placeholder="you@lawfirm.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
                 required
               />
             </div>
@@ -76,6 +112,7 @@ const Register = () => {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
                 required
               />
             </div>
@@ -88,13 +125,15 @@ const Register = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className={!passwordsMatch ? "border-destructive focus-visible:ring-destructive" : ""}
+                disabled={loading}
                 required
               />
               {!passwordsMatch && (
                 <p className="text-sm text-destructive">Passwords do not match</p>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={!passwordsMatch || confirmPassword === ""}>
+            <Button type="submit" className="w-full" disabled={loading || !passwordsMatch || confirmPassword === ""}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Account
             </Button>
           </form>
